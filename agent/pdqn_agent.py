@@ -4,6 +4,7 @@ class PDQNAgent(BaseAgent):
     def __init__(self, action_space, ob_generator, reward_generator,reward_generator2):
         super().__init__(action_space)
         self.ob_generator = ob_generator
+        self.number_of_states = ob_generator.ob_length
         self.reward_generator = reward_generator
         self.reward_generator2 = reward_generator2
 
