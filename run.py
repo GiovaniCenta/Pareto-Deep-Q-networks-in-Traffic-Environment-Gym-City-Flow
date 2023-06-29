@@ -37,6 +37,7 @@ obs = env.reset()
 for i in range(args.steps):
     if i % 5 == 0:
         actions = env.action_space.sample()
+    print(obs)
     obs, rewards, dones, info = env.step(actions)
     #print(obs[0].shape)
     print(rewards)

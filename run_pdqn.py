@@ -55,6 +55,14 @@ print("Final Travel Time is %.4f" % env.metric.update(done=True))
 ################################################################################
 ################################################################################
 
+
+def state_conversion(state):
+    for i,state_i in enumerate(state):
+        if state_i is not 0:
+            return i
+    else:
+        return 0
+
 import numpy as np
 from Pareto.Pareto import Pareto
 
@@ -76,8 +84,9 @@ number_of_episodes = 20000
 starting_learn = 50
 number_of_states = agents[0].number_of_states
 number_of_p_points = 5
+number_of_actions = len(i.phases)
 D = ReplayMemory((number_of_states,),size= memory_capacity, nO=2)
-Pareto = Pareto(env=env,metrs=metr,step_start_learning = starting_learn,numberofeps = number_of_episodes,ReplayMem = D,
+Pareto = Pareto(env=env,metrs=metr,number_of_states=number_of_states,number_of_actions=number_of_actions,step_start_learning = starting_learn,numberofeps = number_of_episodes,ReplayMem = D,
     number_of_p_points = number_of_p_points, epsilon_start = 1.,epsilon_decay = 0.99997,epsilon_min = 0.01,gamma = 1.,copy_every=50,ref_point = [-1,-2] )
 
 
@@ -86,7 +95,7 @@ number_of_objectives = 2
 e=0
 
 
-number_of_actions = len(i.phases)
+
 
 minibatch_size = 16
 from collections import namedtuple
@@ -116,6 +125,10 @@ while e < number_of_episodes:
     acumulatedRewards = [0,0]
     
     qcopy =[]
+    print(state)
+    state = state_conversion(state)   #convert the state to a number
+    #### to do: need to do this for multiples arrays of states (more than 1 crossroad), check other config file
+    
     while terminal is False or step == MAX_STEPS:
         one_hot_state[state] = 1
         #env.render()
@@ -131,6 +144,10 @@ while e < number_of_episodes:
             action =  env.action_space.sample()
         
         #take the action
+        print(f'action: {action}')
+        if isinstance(action, np.int64):
+            action = int(action)  # Convert numpy.int64 to integer
+            action = np.array([action])
         next_state, reward, terminal, _ = env.step(action)
         reward = reward[0]
         
@@ -139,7 +156,7 @@ while e < number_of_episodes:
         acumulatedRewards[0] += reward[0]
         acumulatedRewards[1] += reward[1]
         
-        next_state = Pareto.flatten_observation(next_state)
+        next_state = state_conversion(next_state)
         ohe_next_state= np.zeros(number_of_states)
         ohe_next_state[next_state] = 1
         
