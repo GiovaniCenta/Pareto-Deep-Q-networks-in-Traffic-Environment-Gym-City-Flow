@@ -31,7 +31,7 @@ class Pareto:
         self.copy_every = copy_every
         self.ref_point = ref_point
         nO = 2
-        self.nA = 4
+        self.nA = number_of_actions
         self.nS = number_of_states
         #self.non_dominated = [[[np.zeros(nO)] for _ in range(self.nA)] for _ in range(self.nS)]
         self.number_of_actions = number_of_actions
@@ -141,7 +141,7 @@ class Pareto:
 
         front = self.pareto_front(obs, samples, use_target_network=use_target_network)
         
-        obs_dims = len(obs.shape) - 1
+        obs_dims = len(obs) - 1
         oa = np.tile(obs, (self.env.nA,) + (1,)*obs_dims)
         as_ = np.repeat(np.arange(self.env.nA), len(obs))
         
@@ -174,7 +174,7 @@ class Pareto:
         self.env.nA = self.number_of_actions
         n_samples = len(samples)
         batch_size = len(obs)
-        obs_dims = len(obs.shape) - 1
+        obs_dims = len(obs) - 1
 
         obs = np.tile(obs, (n_samples,) + (1,)*obs_dims)
 
@@ -185,12 +185,12 @@ class Pareto:
         a_samples = np.tile(samples, (self.env.nA, 1))
        
         as_ = np.repeat(np.arange(self.env.nA), n_samples*batch_size)
-
+        
         oa_obj = self.nd_estimator.predict(a_obs,
                                          a_samples,
                                          as_.astype(np.long),
                                          use_target_network=use_target_network).detach().cpu().numpy()
-
+        
         
 
         
@@ -549,7 +549,7 @@ class Pareto:
             print("pareto - episode = " + str(e) +  "| Rewards = [ " + str(acumulatedRewards[0]) + "," + str(acumulatedRewards[1]) + " ]")
                 
             self.epsilon_decrease()
-            
+            state = next_state
             e+=1
             total_steps = total_steps + step
         import matplotlib.pyplot as plt
