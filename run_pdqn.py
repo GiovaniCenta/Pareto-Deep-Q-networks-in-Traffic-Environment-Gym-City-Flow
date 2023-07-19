@@ -6,6 +6,20 @@ from agent.pdqn_agent import PDQNAgent
 from metric import TravelTimeMetric
 import argparse
 
+import numpy as np
+from Pareto.Pareto import Pareto
+
+from Pareto.ReplayMemory import ReplayMemory
+import gym
+from gym import wrappers
+
+import torch
+from Pareto.metrics import metrics
+import copy
+
+
+import matplotlib.pyplot as plt
+
 # parse args
 parser = argparse.ArgumentParser(description='Run Example')
 parser.add_argument('config_file', type=str, help='path of config file')
@@ -23,7 +37,7 @@ for i in world.intersections:
     agents.append(PDQNAgent(
         action_space,
         LaneVehicleGenerator(world, i, ["lane_count"], in_only=True, average="road"),
-        LaneVehicleGenerator(world, i, ["lane_waiting_count"], in_only=True, average="all", negative=True),
+        LaneVehicleGenerator(world, i, ["lane_delay"], in_only=True, average="all", negative=True),
         LaneVehicleGenerator(world, i, ["lane_waiting_count"], in_only=True, average="all", negative=True),
 
     ))
@@ -56,33 +70,13 @@ print("Final Travel Time is %.4f" % env.metric.update(done=True))
 ################################################################################
 
 
-def state_conversion(state):
-    for i,state_i in enumerate(state):
-        if state_i is not 0:
-            return i
-    else:
-        return 0
-
-import numpy as np
-from Pareto.Pareto import Pareto
-
-from Pareto.ReplayMemory import ReplayMemory
-import gym
-from gym import wrappers
-
-import torch
-from Pareto.metrics import metrics
-import copy
-
-
-import matplotlib.pyplot as plt
-
 env = TSCEnv(world, agents, metric)
 memory_capacity = 100
 metr = metrics()
 number_of_episodes = 20000
 starting_learn = 50
 number_of_states = agents[0].number_of_states
+
 number_of_p_points = 5
 number_of_actions = len(i.phases)
 D = ReplayMemory((number_of_states,),size= memory_capacity, nO=2)
@@ -108,34 +102,34 @@ Transition = namedtuple('Transition',
                          'next_state',
                          'terminal'])
 number_of_objectives = 2
-MAX_STEPS = 200
+MAX_STEPS = 2000
 
 polIndex = 0
 qtable = np.zeros((number_of_states, number_of_actions, 2),dtype=object)
 starting_learn = 50
-normalize_reward = {'min': np.array([0,0]), 'scale': np.array([124, 19])}
+
 polDict = np.zeros((number_of_episodes, number_of_actions,number_of_p_points, number_of_objectives))
 total_steps = 0
-
+state = env.reset()
 while e < number_of_episodes:
-    state = Pareto.initializeState()
+    
     step = 0
-    one_hot_state = np.zeros(number_of_states)
+    
     terminal = False
     acumulatedRewards = [0,0]
     
     qcopy =[]
-    print(state)
-    state = state_conversion(state)   #convert the state to a number
+      #convert the state to a number
     #### to do: need to do this for multiples arrays of states (more than 1 crossroad), check other config file
     
     while terminal is False or step == MAX_STEPS:
-        one_hot_state[state] = 1
+        #one_hot_state[state] = 1
         #env.render()
         step += 1
         if total_steps > 2*starting_learn:
             #action selection step
-            q_front = Pareto.q_front(np.expand_dims(np.array(one_hot_state), 0), n=number_of_p_points, use_target_network=False)
+            
+            q_front = Pareto.q_front(state, n=number_of_p_points, use_target_network=False)
             
             hv = Pareto.compute_hypervolume(q_front[0],number_of_actions,np.array([-1,-2]))
             action = Pareto.e_greedy_action(hv)
@@ -152,22 +146,23 @@ while e < number_of_episodes:
         reward = reward[0]
         
         
+        
 
         acumulatedRewards[0] += reward[0]
         acumulatedRewards[1] += reward[1]
         
-        next_state = state_conversion(next_state)
-        ohe_next_state= np.zeros(number_of_states)
-        ohe_next_state[next_state] = 1
+        
+        
         
         
 
         #add transition to memory
         
-        t = Transition(state=one_hot_state,
+        
+        t = Transition(state=state[0],
                        action=action,
                        reward=reward,
-                       next_state=ohe_next_state,
+                       next_state=next_state[0],
                        terminal=terminal)
         D.add(t)
         
@@ -181,7 +176,7 @@ while e < number_of_episodes:
             minibatch_states = []
             minibatch_actions = []
            
-            minibatch_rew_normalized = (minibatch.reward -normalize_reward['min'])/normalize_reward['scale']
+            minibatch_rew_normalized = minibatch.reward
 
             #Calculate q front for the minibatch    
             batch_q_front_next = Pareto.q_front(minibatch.next_state, n=number_of_p_points, use_target_network=True)
@@ -244,6 +239,9 @@ while e < number_of_episodes:
                                         minibatch.state,
                                         minibatch.action.astype(np.long),
                                         step=total_steps)
+        #state = next_state
+            
+            
           
             
         
